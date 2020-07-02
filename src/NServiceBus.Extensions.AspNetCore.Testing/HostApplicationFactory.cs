@@ -30,6 +30,18 @@ namespace NServiceBus.Extensions.AspNetCore.Testing
                 .OfType<TMessageHandled>();
         }
 
+        public async Task<IEnumerable<TMessageHandled>> SendLocalAndWaitForHandled<TMessageHandled>(object commandToSend, TimeSpan? timeout = null)
+        {
+            var values = await ExecuteAndWait<IOutgoingLogicalMessageContext>(
+                session => session.SendLocal(commandToSend),
+                m => m.Message.MessageType == typeof(TMessageHandled),
+                timeout);
+
+            return values
+                .Select(m => m.Message.Instance)
+                .OfType<TMessageHandled>();
+        }
+
         public async Task<IEnumerable<TMessageHandled>> PublishAndWaitForHandled<TMessageHandled>(object eventToPublish, TimeSpan? timeout = null)
         {
             var values = await ExecuteAndWait<IOutgoingLogicalMessageContext>(
@@ -98,6 +110,8 @@ namespace NServiceBus.Extensions.AspNetCore.Testing
                     .Subscribe(listener => diagnosticListener = listener.Publish());
             }
 
+            var session = Services.GetService<IMessageSession>();
+
             _listenerSubscriber = diagnosticListener?.Subscribe();
             diagnosticListener?.Connect();
 
@@ -110,8 +124,6 @@ namespace NServiceBus.Extensions.AspNetCore.Testing
             {
                 obs = obs?.Timeout(timeout.Value);
             }
-
-            var session = Services.GetService<IMessageSession>();
 
             await sendAction(session);
 
