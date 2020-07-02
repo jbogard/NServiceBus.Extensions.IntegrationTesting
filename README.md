@@ -1,76 +1,78 @@
-# NServiceBus.Extensions.Diagnostics
+# NServiceBus.Extensions.AspNetCore.Testing
 
-![CI](https://github.com/jbogard/NServiceBus.Extensions.Diagnostics/workflows/CI/badge.svg)
+[![CI](https://github.com/jbogard/NServiceBus.Extensions.AspNetCore.Testing/workflows/CI/badge.svg)](https://github.com/jbogard/NServiceBus.Extensions.AspNetCore.Testing/workflows/CI)
+[![NuGet](https://img.shields.io/nuget/vpre/NServiceBus.Extensions.AspNetCore.Testing.svg)](https://www.nuget.org/packages/NServiceBus.Extensions.AspNetCore.Testing)
+[![MyGet (dev)](https://img.shields.io/myget/jbogard-ci/v/NServiceBus.Extensions.AspNetCore.Testing.svg)](https://myget.org/gallery/jbogard-ci)
 
 ## Usage
 
-This repo includes two packages:
+This library extends the [Microsoft.AspNetCore.Testing.Mvc](https://www.nuget.org/packages/Microsoft.AspNetCore.Mvc.Testing) and [NServiceBus.Extensions.Hosting](https://www.nuget.org/packages/NServiceBus.Extensions.Hosting/) package to provide extensions for integration testing for messaging-based applications.
 
- - [NServiceBus.Extensions.Diagnostics](https://www.nuget.org/packages/NServiceBus.Extensions.Diagnostics/)
- - [NServiceBus.Extensions.Diagnostics.OpenTelemetry](https://www.nuget.org/packages/NServiceBus.Extensions.Diagnostics.OpenTelemetry/)
- 
-The `NServiceBus.Extensions.Diagnostics` package extends NServiceBus to expose telemetry information via `System.Diagnostics`.
+Typical integration tests with NServiceBus manually execute a single handler at a time. However, an entire application might handle multiple messages in a chain.
 
-The `NServiceBus.Extensions.Diagnostics.OpenTelemetry` package provides adapters to [OpenTelemetry](https://opentelemetry.io/).
+This package provides two extensions:
 
-To use `NServiceBus.Extensions.Diagnostics`, simply reference the package. The `DiagnosticsFeature` is enabled by default.
+- Testing-friendly configuration for NServiceBus `EndpointConfiguration`
+- Test methods to `WebApplicationHost`
 
-The Diagnostics package exposes four different events from [behaviors](https://docs.particular.net/nservicebus/pipeline/manipulate-with-behaviors) via Diagnostics:
-
- - IIncomingPhysicalMessageContext
- - IIncomingLogicalMessageContext
- - IOutgoingPhysicalMessageContext
- - IOutgoingLogicalMessageContext
- 
-The Physical message variants include full Activity support. All diagnostics events pass through the corresponding [context object](https://docs.particular.net/nservicebus/pipeline/steps-stages-connectors) as its event argument.
- 
-This package supports NServiceBus version 7.0 and above.
-
-### W3C traceparent and Correlation-Context support
-
-The Diagnostics package also provides support for both the [W3C Trace Context recommendation](https://www.w3.org/TR/trace-context/) and [W3C Correlation Context June 2020 draft](https://w3c.github.io/correlation-context/).
-
-The Trace Context supports propagates the `traceparent` and `tracecontext` headers into outgoing messages, and populates `Activity` parent ID based on incoming messages.
-
-The Correlation Context support consumes incoming headers into `Activity.Baggage`, and propagates `Activity.Baggage` into outgoing messages.
-
-If you would like to add additional correlation context, inside your handler you can add additional baggage:
+To use, first create a `HostApplicationFactory` instance as you would with ASP.NET Core:
 
 ```csharp
-Activity.Current.AddBaggage("mykey", "myvalue");
+public class TestFactory : HostingApplicationFactory<Startup> 
+{
+}
 ```
 
-Correlation context can then flow out to tracing and observability tools. Common usage for correlation context are user IDs, session IDs, conversation IDs, and anything you might want to search traces to triangulate specific traces.
-
-## OpenTelemetry usage
-
-Once you've referenced the Diagnostics package to expose diagnostics events as above, you can configure OpenTelemetry (typically through the [OpenTelemetry.Extensions.Hosting](https://www.nuget.org/packages/OpenTelemetry.Extensions.Hosting/0.2.0-alpha.275) package).
+Next, you will need to override your normal host building to provide test-specific configuration for NServiceBus:
 
 ```csharp
-services.AddOpenTelemetry(builder => {
-    builder
-        // Configure exporters
-        .UseZipkin()
-        // Configure adapters
-        .UseRequestAdapter()
-        .UseDependencyAdapter()
-        .AddNServiceBusAdapter(); // Adds NServiceBus OTel support
-});
+protected override IHostBuilder CreateHostBuilder() =>
+     Host.CreateDefaultBuilder()
+         .UseNServiceBus(ctxt =>
+         {
+             var endpoint = new EndpointConfiguration("HostApplicationFactoryTests");
+
+             // Set up NServiceBus with testing-friendly defaults
+             endpoint.ConfigureTestEndpoint();
+
+             // Set up any of your other configuration here
+
+             return endpoint;
+         })
+         .ConfigureWebHostDefaults(b => b.UseStartup<Startup>());
 ```
 
-Since OTel is supported at the NServiceBus level, any transport that NServiceBus supports also supports OTel.
-This package supports the latest released alpha package on NuGet.
-
-By default, the message body is not logged to OTel. To change this, configure the options:
+Typically with xUnit, this factory becomes a fixture:
 
 ```csharp
-services.AddOpenTelemetry(builder => {
-    builder
-        // Configure exporters
-        .UseZipkin()
-        // Configure adapters
-        .UseRequestAdapter()
-        .UseDependencyAdapter()
-        .AddNServiceBusAdapter(opt => opt.CaptureMessageBody = true); // Adds NServiceBus OTel support
-});
+public class HostApplicationFactoryTests 
+    : IClassFixture<TestFactory>
+{
+    private readonly TestFactory _factory;
+
+    public HostApplicationFactoryTests(TestFactory factory) => _factory = factory;
 ```
+
+In your tests, you can call the various overloads to send a message and wait in `HostingApplicationFactory`:
+
+```csharp
+[Fact]
+public async Task Can_send_and_wait()
+{
+    var firstMessage = new FirstMessage {Message = "Hello World"};
+
+    var results = 
+        (await _factory.SendLocalAndWaitForHandled<FinalMessage>(firstMessage))
+        .ToList();
+
+    results.ShouldNotBeEmpty();
+
+    var message = results.Single();
+
+    message.Message.ShouldBe(firstMessage.Message);
+}
+```
+
+In the above, the `FinalMessage` is the expected "final message" after sending the first message. Either the method returns with a list of those final messages, or it will time out.
+
+There are methods to Send/SendLocal/Publish and then wait for messages to be either sent or handled.
