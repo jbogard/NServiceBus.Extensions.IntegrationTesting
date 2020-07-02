@@ -1,0 +1,49 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30225.117
+MinimumVisualStudioVersion = 15.0.26124.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{11075297-8ABA-45E1-8A26-83DE565047C2}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		Build.ps1 = Build.ps1
+		.github\workflows\ci.yml = .github\workflows\ci.yml
+		Directory.Build.props = Directory.Build.props
+		Push.ps1 = Push.ps1
+		README.md = README.md
+		.github\workflows\release.yml = .github\workflows\release.yml
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NServiceBus.Extensions.AspNetCore.Testing", "src\NServiceBus.Extensions.AspNetCore.Testing\NServiceBus.Extensions.AspNetCore.Testing.csproj", "{0FE62FE8-9AAC-4213-9A19-47FF01178501}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Debug|x64.Build.0 = Debug|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Debug|x86.Build.0 = Debug|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Release|x64.ActiveCfg = Release|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Release|x64.Build.0 = Release|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Release|x86.ActiveCfg = Release|Any CPU
+		{0FE62FE8-9AAC-4213-9A19-47FF01178501}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {095FFD45-A39C-4835-B2FF-3BD93070627A}
+	EndGlobalSection
+EndGlobal
