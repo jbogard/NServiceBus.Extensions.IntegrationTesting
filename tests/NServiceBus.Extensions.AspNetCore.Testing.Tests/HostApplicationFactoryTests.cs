@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Shouldly;
 using Xunit;
@@ -21,8 +23,10 @@ namespace NServiceBus.Extensions.AspNetCore.Testing.Tests
         {
             var firstMessage = new FirstMessage {Message = "Hello World"};
 
+            var session = _factory.Services.GetService<IMessageSession>();
+
             var results = 
-                (await _factory.SendLocalAndWaitForHandled<FinalMessage>(firstMessage))
+                (await _factory.EndpointFixture.ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage)))
                 .ToList();
 
             results.ShouldNotBeEmpty();
@@ -37,13 +41,19 @@ namespace NServiceBus.Extensions.AspNetCore.Testing.Tests
         {
             var firstMessage = new FirstMessage {Message = "Hello World"};
 
-            var results = await _factory.SendLocalAndWaitForHandled<NotHandledMessage>(firstMessage, TimeSpan.FromSeconds(2));
+            var session = _factory.Services.GetService<IMessageSession>();
+
+            var results = await _factory.EndpointFixture.ExecuteAndWaitForHandled<NotHandledMessage>(() => session.SendLocal(firstMessage), TimeSpan.FromSeconds(2));
 
             Should.Throw<TimeoutException>(() => results.ToList());
         }
 
-        public class TestFactory : HostApplicationFactory<HostApplicationFactoryTests>
+        public class TestFactory : WebApplicationFactory<HostApplicationFactoryTests>
         {
+            public EndpointFixture EndpointFixture { get; }
+
+            public TestFactory() => EndpointFixture = new EndpointFixture();
+
             protected override IHostBuilder CreateHostBuilder() =>
                 Host.CreateDefaultBuilder()
                     .UseNServiceBus(ctxt =>
@@ -60,6 +70,16 @@ namespace NServiceBus.Extensions.AspNetCore.Testing.Tests
             {
                 builder.UseContentRoot(Directory.GetCurrentDirectory());
                 return base.CreateHost(builder);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    EndpointFixture.Dispose();
+                }
+
+                base.Dispose(disposing);
             }
         }
 

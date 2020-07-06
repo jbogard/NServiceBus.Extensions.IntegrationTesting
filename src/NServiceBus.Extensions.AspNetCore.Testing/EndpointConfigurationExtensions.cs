@@ -1,12 +1,20 @@
-﻿using NServiceBus.Features;
+﻿using System;
+using NServiceBus.Features;
 
 namespace NServiceBus.Extensions.AspNetCore.Testing
 {
     public static class EndpointConfigurationExtensions
     {
         public static EndpointConfiguration ConfigureTestEndpoint(this EndpointConfiguration endpoint)
+            => endpoint.ConfigureTestEndpoint(null);
+
+        public static EndpointConfiguration ConfigureTestEndpoint(this EndpointConfiguration endpoint, 
+            Action<TransportExtensions<LearningTransport>> transportConfigurationAction)
         {
-            endpoint.UseTransport<LearningTransport>();
+            var transport = endpoint.UseTransport<LearningTransport>();
+
+            transportConfigurationAction?.Invoke(transport);
+
             endpoint.PurgeOnStartup(true);
             endpoint.DisableFeature<Audit>();
             endpoint
