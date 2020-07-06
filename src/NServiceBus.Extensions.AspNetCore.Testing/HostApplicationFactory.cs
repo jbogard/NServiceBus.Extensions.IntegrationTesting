@@ -82,6 +82,34 @@ namespace NServiceBus.Extensions.AspNetCore.Testing
                 .OfType<TMessage>();
         }
 
+        public async Task<IEnumerable<TMessageHandled>> ExecuteAndWaitForHandled<TMessageHandled>(
+            Func<Task> testAction,
+            TimeSpan? timeout = null)
+        {
+            var values = await ExecuteAndWait<IOutgoingLogicalMessageContext>(
+                _ => testAction(),
+                m => m.Message.MessageType == typeof(TMessageHandled),
+                timeout);
+
+            return values
+                .Select(m => m.Message.Instance)
+                .OfType<TMessageHandled>();
+        }
+
+        public async Task<IEnumerable<TMessage>> ExecuteAndWaitForSent<TMessage>(
+            Func<Task> testAction,
+            TimeSpan? timeout = null)
+        {
+            var values = await ExecuteAndWait<IOutgoingLogicalMessageContext>(
+                _ => testAction(),
+                m => m.Message.MessageType == typeof(TMessage),
+                timeout);
+
+            return values
+                .Select(m => m.Message.Instance)
+                .OfType<TMessage>();
+        }
+
         public async Task<IEnumerable<TDiagnosticEvent>> ExecuteAndWait<TDiagnosticEvent>(
             Func<IMessageSession, Task> sendAction,
             Func<TDiagnosticEvent, bool> predicate,
