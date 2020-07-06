@@ -9,7 +9,8 @@ using Xunit;
 
 namespace NServiceBus.Extensions.AspNetCore.Testing.Tests
 {
-    public class HostApplicationFactoryTests : IClassFixture<HostApplicationFactoryTests.TestFactory>
+    public class HostApplicationFactoryTests 
+        : IClassFixture<HostApplicationFactoryTests.TestFactory>
     {
         private readonly TestFactory _factory;
 
