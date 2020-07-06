@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Shouldly;
 using Xunit;
 
-namespace NServiceBus.Extensions.AspNetCore.Testing.Tests
+namespace NServiceBus.Extensions.IntegrationTesting.Tests
 {
     public class HostApplicationFactoryTests 
         : IClassFixture<HostApplicationFactoryTests.TestFactory>

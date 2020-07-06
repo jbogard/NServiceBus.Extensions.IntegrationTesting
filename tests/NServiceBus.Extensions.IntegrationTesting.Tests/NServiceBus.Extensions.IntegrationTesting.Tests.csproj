@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="3.1.5" />
-    <ProjectReference Include="..\..\src\NServiceBus.Extensions.AspNetCore.Testing\NServiceBus.Extensions.AspNetCore.Testing.csproj" />
+    <ProjectReference Include="..\..\src\NServiceBus.Extensions.IntegrationTesting\NServiceBus.Extensions.IntegrationTesting.csproj" />
   </ItemGroup>
 
 </Project>

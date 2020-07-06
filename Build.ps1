@@ -32,5 +32,5 @@ exec { & dotnet build -c Release }
 
 exec { & dotnet test -c Release -r $artifacts --no-build -l trx --verbosity=normal }
 
-exec { & dotnet pack .\src\NServiceBus.Extensions.AspNetCore.Testing\NServiceBus.Extensions.AspNetCore.Testing.csproj -c Release -o $artifacts --no-build }
+exec { & dotnet pack .\src\NServiceBus.Extensions.IntegrationTesting\NServiceBus.Extensions.IntegrationTesting.csproj -c Release -o $artifacts --no-build }
 

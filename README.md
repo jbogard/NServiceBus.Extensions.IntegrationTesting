@@ -1,8 +1,8 @@
-# NServiceBus.Extensions.AspNetCore.Testing
+# NServiceBus.Extensions.IntegrationTesting
 
-[![CI](https://github.com/jbogard/NServiceBus.Extensions.AspNetCore.Testing/workflows/CI/badge.svg)](https://github.com/jbogard/NServiceBus.Extensions.AspNetCore.Testing/workflows/CI)
-[![NuGet](https://img.shields.io/nuget/vpre/NServiceBus.Extensions.AspNetCore.Testing.svg)](https://www.nuget.org/packages/NServiceBus.Extensions.AspNetCore.Testing)
-[![MyGet (dev)](https://img.shields.io/myget/jbogard-ci/v/NServiceBus.Extensions.AspNetCore.Testing.svg)](https://myget.org/gallery/jbogard-ci)
+[![CI](https://github.com/jbogard/NServiceBus.Extensions.IntegrationTesting/workflows/CI/badge.svg)](https://github.com/jbogard/NServiceBus.Extensions.IntegrationTesting/workflows/CI)
+[![NuGet](https://img.shields.io/nuget/vpre/NServiceBus.Extensions.IntegrationTesting.svg)](https://www.nuget.org/packages/NServiceBus.Extensions.IntegrationTesting)
+[![MyGet (dev)](https://img.shields.io/myget/jbogard-ci/v/NServiceBus.Extensions.IntegrationTesting.svg)](https://myget.org/gallery/jbogard-ci)
 
 ## Usage
 

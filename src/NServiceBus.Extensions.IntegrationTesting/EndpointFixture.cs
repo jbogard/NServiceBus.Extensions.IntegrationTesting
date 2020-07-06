@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using NServiceBus.Extensions.Diagnostics;
 using NServiceBus.Pipeline;
 
-namespace NServiceBus.Extensions.AspNetCore.Testing
+namespace NServiceBus.Extensions.IntegrationTesting
 {
     public class EndpointFixture : IDisposable
     {

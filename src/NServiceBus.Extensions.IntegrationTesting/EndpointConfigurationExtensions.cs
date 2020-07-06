@@ -1,7 +1,7 @@
 ﻿using System;
 using NServiceBus.Features;
 
-namespace NServiceBus.Extensions.AspNetCore.Testing
+namespace NServiceBus.Extensions.IntegrationTesting
 {
     public static class EndpointConfigurationExtensions
     {
