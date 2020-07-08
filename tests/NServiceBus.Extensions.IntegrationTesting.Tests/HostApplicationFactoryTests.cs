@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Shouldly;
 using Xunit;
+[assembly:CollectionBehavior(DisableTestParallelization = true)]
 
 namespace NServiceBus.Extensions.IntegrationTesting.Tests
 {
