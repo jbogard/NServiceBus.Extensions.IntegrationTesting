@@ -25,27 +25,28 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
 
             var session = _factory.Services.GetService<IMessageSession>();
 
-            var results = 
-                (await _factory.EndpointFixture.ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage)))
-                .ToList();
+            var result = await _factory.EndpointFixture.ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage));
 
-            results.ShouldNotBeEmpty();
+            result.IncomingMessageContexts.Count.ShouldBe(3);
+            result.OutgoingMessageContexts.Count.ShouldBe(3);
 
-            var message = results.Single();
+            result.ReceivedMessages.ShouldNotBeEmpty();
+
+            var message = result.ReceivedMessages.OfType<FinalMessage>().Single();
 
             message.Message.ShouldBe(firstMessage.Message);
         }
 
         [Fact]
-        public async Task Will_timeout_when_message_never_arrives()
+        public Task Will_timeout_when_message_never_arrives()
         {
             var firstMessage = new FirstMessage {Message = "Hello World"};
 
             var session = _factory.Services.GetService<IMessageSession>();
 
-            var results = await _factory.EndpointFixture.ExecuteAndWaitForHandled<NotHandledMessage>(() => session.SendLocal(firstMessage), TimeSpan.FromSeconds(2));
+            Task Action() => _factory.EndpointFixture.ExecuteAndWaitForHandled<NotHandledMessage>(() => session.SendLocal(firstMessage), TimeSpan.FromSeconds(2));
 
-            Should.Throw<TimeoutException>(() => results.ToList());
+            return Should.ThrowAsync<TimeoutException>(Action);
         }
 
         public class TestFactory : WebApplicationFactory<HostApplicationFactoryTests>
