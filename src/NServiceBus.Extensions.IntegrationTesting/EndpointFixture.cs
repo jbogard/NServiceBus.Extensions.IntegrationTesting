@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Reactive;
 using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Threading;
 using System.Threading.Tasks;
 using NServiceBus.Extensions.Diagnostics;
 using NServiceBus.Pipeline;
@@ -19,18 +15,16 @@ namespace NServiceBus.Extensions.IntegrationTesting
         public Task<ObservedMessageContexts> ExecuteAndWaitForHandled<TMessageHandled>(
             Func<Task> testAction,
             TimeSpan? timeout = null) =>
-            ExecuteAndWait(
+            ExecuteAndWait<IIncomingLogicalMessageContext>(
                 testAction, 
                 m => m.Message.MessageType == typeof(TMessageHandled),
-                null,
                 timeout);
 
         public Task<ObservedMessageContexts> ExecuteAndWaitForSent<TMessage>(
             Func<Task> testAction,
             TimeSpan? timeout = null) =>
-            ExecuteAndWait(
+            ExecuteAndWait<IOutgoingLogicalMessageContext>(
                 testAction,
-                null,
                 m => m.Message.MessageType == typeof(TMessage),
                 timeout);
 
@@ -38,27 +32,27 @@ namespace NServiceBus.Extensions.IntegrationTesting
             Func<Task> testAction,
             Func<IIncomingLogicalMessageContext, bool> incomingPredicate,
             TimeSpan? timeout = null) => 
-            ExecuteAndWait(testAction, incomingPredicate, null, timeout);
+            ExecuteAndWait<IIncomingLogicalMessageContext>(testAction, incomingPredicate,  timeout);
 
         public Task<ObservedMessageContexts> ExecuteAndWait(
             Func<Task> testAction,
             Func<IOutgoingLogicalMessageContext, bool> outgoingPredicate,
             TimeSpan? timeout = null) => 
-            ExecuteAndWait(testAction, null, outgoingPredicate, timeout);
+            ExecuteAndWait<IOutgoingLogicalMessageContext>(testAction, outgoingPredicate, timeout);
 
-        public async Task<ObservedMessageContexts> ExecuteAndWait(
+        private async Task<ObservedMessageContexts> ExecuteAndWait<TMessageContext>(
             Func<Task> testAction,
-            Func<IIncomingLogicalMessageContext, bool> incomingPredicate,
-            Func<IOutgoingLogicalMessageContext, bool> outgoingPredicate,
+            Func<TMessageContext, bool> predicate,
             TimeSpan? timeout = null)
+            where TMessageContext : IPipelineContext
         {
-            timeout ??= Debugger.IsAttached
+            timeout = Debugger.IsAttached
                 ? (TimeSpan?)null
-                : TimeSpan.FromSeconds(10);
+                : timeout ?? TimeSpan.FromSeconds(10);
 
             var incomingMessageContexts = new List<IIncomingLogicalMessageContext>();
             var outgoingMessageContexts = new List<IOutgoingLogicalMessageContext>();
-            IObservable<IPipelineContext> obs = null;
+            var obs = Observable.Empty<object>();
 
             _allListenerSubscription = DiagnosticListener.AllListeners
                 .Subscribe(listener =>
@@ -72,14 +66,9 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
                             incomingObs.Subscribe(incomingMessageContexts.Add);
 
-                            if (incomingPredicate != null)
+                            if (typeof(TMessageContext) ==  typeof(IIncomingLogicalMessageContext))
                             {
-                                obs = incomingObs.TakeUntil(incomingPredicate).Cast<IPipelineContext>();
-
-                                if (timeout != null)
-                                {
-                                    obs = obs.Timeout(timeout.Value);
-                                }
+                                obs = obs.Merge(incomingObs);
                             }
 
                             break;
@@ -90,24 +79,25 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
                             outgoingObs.Subscribe(outgoingMessageContexts.Add);
 
-                            if (outgoingPredicate != null)
+                            if (typeof(TMessageContext) == typeof(IOutgoingLogicalMessageContext))
                             {
-                                obs = outgoingObs.TakeUntil(outgoingPredicate).Cast<IPipelineContext>();
-
-                                if (timeout != null)
-                                {
-                                    obs = obs.Timeout(timeout.Value);
-                                }
+                                obs = obs.Merge(outgoingObs);
                             }
 
                             break;
                     }
                 });
 
+            var finalObs = obs.Cast<TMessageContext>().TakeUntil(predicate);
+            if (timeout != null)
+            {
+                finalObs = finalObs.Timeout(timeout.Value);
+            }
+
             await testAction();
 
-            // Force the observable
-            foreach (var _ in obs?.ToEnumerable()) { }
+            // Force the observable to complete
+            await finalObs;
 
             return new ObservedMessageContexts(incomingMessageContexts, outgoingMessageContexts);
         }
