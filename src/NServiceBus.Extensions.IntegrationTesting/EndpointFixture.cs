@@ -8,11 +8,9 @@ using NServiceBus.Pipeline;
 
 namespace NServiceBus.Extensions.IntegrationTesting
 {
-    public class EndpointFixture : IDisposable
+    public static class EndpointFixture
     {
-        private IDisposable _allListenerSubscription;
-
-        public Task<ObservedMessageContexts> ExecuteAndWaitForHandled<TMessageHandled>(
+        public static Task<ObservedMessageContexts> ExecuteAndWaitForHandled<TMessageHandled>(
             Func<Task> testAction,
             TimeSpan? timeout = null) =>
             ExecuteAndWait<IIncomingLogicalMessageContext>(
@@ -20,7 +18,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
                 m => m.Message.MessageType == typeof(TMessageHandled),
                 timeout);
 
-        public Task<ObservedMessageContexts> ExecuteAndWaitForSent<TMessage>(
+        public static Task<ObservedMessageContexts> ExecuteAndWaitForSent<TMessage>(
             Func<Task> testAction,
             TimeSpan? timeout = null) =>
             ExecuteAndWait<IOutgoingLogicalMessageContext>(
@@ -28,19 +26,19 @@ namespace NServiceBus.Extensions.IntegrationTesting
                 m => m.Message.MessageType == typeof(TMessage),
                 timeout);
 
-        public Task<ObservedMessageContexts> ExecuteAndWait(
+        public static Task<ObservedMessageContexts> ExecuteAndWait(
             Func<Task> testAction,
             Func<IIncomingLogicalMessageContext, bool> incomingPredicate,
             TimeSpan? timeout = null) => 
             ExecuteAndWait<IIncomingLogicalMessageContext>(testAction, incomingPredicate,  timeout);
 
-        public Task<ObservedMessageContexts> ExecuteAndWait(
+        public static Task<ObservedMessageContexts> ExecuteAndWait(
             Func<Task> testAction,
             Func<IOutgoingLogicalMessageContext, bool> outgoingPredicate,
             TimeSpan? timeout = null) => 
             ExecuteAndWait<IOutgoingLogicalMessageContext>(testAction, outgoingPredicate, timeout);
 
-        private async Task<ObservedMessageContexts> ExecuteAndWait<TMessageContext>(
+        private static async Task<ObservedMessageContexts> ExecuteAndWait<TMessageContext>(
             Func<Task> testAction,
             Func<TMessageContext, bool> predicate,
             TimeSpan? timeout = null)
@@ -54,7 +52,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
             var outgoingMessageContexts = new List<IOutgoingLogicalMessageContext>();
             var obs = Observable.Empty<object>();
 
-            _allListenerSubscription = DiagnosticListener.AllListeners
+            using var allListenerSubscription = DiagnosticListener.AllListeners
                 .Subscribe(listener =>
                 {
                     switch (listener.Name)
@@ -99,12 +97,9 @@ namespace NServiceBus.Extensions.IntegrationTesting
             // Force the observable to complete
             await finalObs;
 
-            return new ObservedMessageContexts(incomingMessageContexts, outgoingMessageContexts);
-        }
-
-        public void Dispose()
-        {
-            _allListenerSubscription?.Dispose();
+            return new ObservedMessageContexts(
+                incomingMessageContexts, 
+                outgoingMessageContexts);
         }
     }
 }

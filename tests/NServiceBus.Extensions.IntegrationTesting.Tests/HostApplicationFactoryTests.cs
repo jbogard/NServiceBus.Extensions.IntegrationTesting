@@ -8,6 +8,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Shouldly;
 using Xunit;
+using static NServiceBus.Extensions.IntegrationTesting.EndpointFixture;
+
 [assembly:CollectionBehavior(DisableTestParallelization = true)]
 
 namespace NServiceBus.Extensions.IntegrationTesting.Tests
@@ -26,7 +28,7 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
 
             var session = _factory.Services.GetService<IMessageSession>();
 
-            var result = await _factory.EndpointFixture.ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage));
+            var result = await ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage));
 
             result.IncomingMessageContexts.Count.ShouldBe(3);
             result.OutgoingMessageContexts.Count.ShouldBe(3);
@@ -45,17 +47,13 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
 
             var session = _factory.Services.GetService<IMessageSession>();
 
-            Task Action() => _factory.EndpointFixture.ExecuteAndWaitForHandled<NotHandledMessage>(() => session.SendLocal(firstMessage), TimeSpan.FromSeconds(2));
+            Task Action() => ExecuteAndWaitForHandled<NotHandledMessage>(() => session.SendLocal(firstMessage), TimeSpan.FromSeconds(2));
 
             return Should.ThrowAsync<TimeoutException>(Action);
         }
 
         public class TestFactory : WebApplicationFactory<HostApplicationFactoryTests>
         {
-            public EndpointFixture EndpointFixture { get; }
-
-            public TestFactory() => EndpointFixture = new EndpointFixture();
-
             protected override IHostBuilder CreateHostBuilder() =>
                 Host.CreateDefaultBuilder()
                     .UseNServiceBus(ctxt =>
@@ -72,16 +70,6 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
             {
                 builder.UseContentRoot(Directory.GetCurrentDirectory());
                 return base.CreateHost(builder);
-            }
-
-            protected override void Dispose(bool disposing)
-            {
-                if (disposing)
-                {
-                    EndpointFixture.Dispose();
-                }
-
-                base.Dispose(disposing);
             }
         }
 
