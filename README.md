@@ -42,22 +42,10 @@ protected override IHostBuilder CreateHostBuilder() =>
          .ConfigureWebHostDefaults(b => b.UseStartup<Startup>());
 ```
 
-Finally, you need to add the `EndpointFixture` to your `WebApplicationFactory`, and override the `Disposing` method. This is not strictly necessary but makes for easier fixtures:
+Finally, the `EndpointFixture` methods are static, so you might want to import the static `EndpointFixture` methods. This is not strictly necessary but makes readiblity better in tests:
 
 ```csharp
-public EndpointFixture EndpointFixture { get; }
-
-public TestFactory() => EndpointFixture = new EndpointFixture();
-
-protected override void Dispose(bool disposing)
-{
-    if (disposing)
-    {
-        EndpointFixture.Dispose();
-    }
-
-    base.Dispose(disposing);
-}
+using static NServiceBus.Extensions.IntegrationTesting.EndpointFixture;
 ```
 
 Typically with xUnit, this factory becomes a fixture:
@@ -81,7 +69,7 @@ public async Task Can_send_and_wait()
 
     var session = _factory.Services.GetService<IMessageSession>()_
 
-    var result = await _factory.ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage)));
+    var result = await ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage)));
 
     result.IncomingMessageContexts.Count.ShouldBe(3);
     result.OutgoingMessageContexts.Count.ShouldBe(3);
@@ -110,8 +98,6 @@ public class SystemFixture : IDisposable
     public WebApplicationFactory<Program> WorkerHost { get; }
 
     public ChildWorkerServiceFactory ChildWorkerHost { get; }
-
-    public EndpointFixture EndpointFixture { get; }
 ```
 
 Unfortunately, the hosts aren't started until the first time a client is created so you may want to include a `Start` method:
@@ -129,7 +115,6 @@ public void Dispose()
     WebAppHost?.Dispose();
     WorkerHost?.Dispose();
     ChildWorkerHost?.Dispose();
-    EndpointFixture?.Dispose();
 }
 ```
 
