@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NServiceBus.Pipeline;
+using NServiceBus.Sagas;
 using Shouldly;
 using Xunit;
 using static NServiceBus.Extensions.IntegrationTesting.EndpointFixture;
@@ -31,7 +33,7 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
             var result = await ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage));
 
             result.IncomingMessageContexts.Count.ShouldBe(3);
-            result.OutgoingMessageContexts.Count.ShouldBe(3);
+            result.OutgoingMessageContexts.Count.ShouldBe(4);
 
             result.ReceivedMessages.ShouldNotBeEmpty();
 
@@ -52,6 +54,23 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
             return Should.ThrowAsync<TimeoutException>(Action);
         }
 
+        [Fact]
+        public async Task Will_wait_for_saga_to_be_completed()
+        {
+            var firstMessage = new FirstMessage {Message = "Hello World"};
+
+            var session = _factory.Services.GetService<IMessageSession>();
+
+            var result = await ExecuteAndWaitForSagaCompletion<SagaExample>(() => session.SendLocal(firstMessage));
+
+            var saga = result.InvokedHandlers.Single(x =>
+                x.MessageHandler.HandlerType == typeof(SagaExample)).GetSagaInstance();
+            
+            Assert.NotNull(saga);
+            
+            Assert.Equal(firstMessage.Message, ((SagaData)saga.Instance.Entity).Message);
+        }
+        
         public class TestFactory : WebApplicationFactory<HostApplicationFactoryTests>
         {
             protected override IHostBuilder CreateHostBuilder() =>
@@ -59,9 +78,8 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
                     .UseNServiceBus(ctxt =>
                     {
                         var endpoint = new EndpointConfiguration("HostApplicationFactoryTests");
-
                         endpoint.ConfigureTestEndpoint();
-
+                        endpoint.UsePersistence<LearningPersistence>();
                         return endpoint;
                     })
                     .ConfigureWebHostDefaults(b => b.Configure(app => {}));
@@ -111,6 +129,34 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
                 Task.CompletedTask;
         }
 
+        public class SagaExample : Saga<SagaData>,
+            IAmStartedByMessages<FirstMessage>
+        {
+            protected override void ConfigureHowToFindSaga(SagaPropertyMapper<SagaData> mapper)
+            {
+                //note that mapping on a string is the worst example ever
+                mapper.ConfigureMapping<FirstMessage>(m => m.Message).ToSaga(s => s.Message);
+            }
 
+            public Task Handle(FirstMessage message, IMessageHandlerContext context)
+            {
+                Data.Message = message.Message;
+                MarkAsComplete();
+                return Task.CompletedTask;
+            }
+        }
+
+        public class SagaData : ContainSagaData
+        {
+            public string Message { get; set; }
+        }
+    }
+    
+    public static class InvokeHandlerContextExtension
+    {
+        public static ActiveSagaInstance GetSagaInstance(this IInvokeHandlerContext context)
+        {
+            return context.Extensions.TryGet(out ActiveSagaInstance saga) ? saga : null;
+        }
     }
 }
