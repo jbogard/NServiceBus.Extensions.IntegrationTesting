@@ -5,6 +5,7 @@ using System.Reactive.Linq;
 using System.Threading.Tasks;
 using NServiceBus.Extensions.Diagnostics;
 using NServiceBus.Pipeline;
+using NServiceBus.Sagas;
 
 namespace NServiceBus.Extensions.IntegrationTesting
 {
@@ -26,6 +27,21 @@ namespace NServiceBus.Extensions.IntegrationTesting
                 m => m.Message.MessageType == typeof(TMessage),
                 timeout);
 
+        public static Task<ObservedMessageContexts> ExecuteAndWaitForSagaCompletion<TSaga>(
+            Func<Task> testAction,
+            TimeSpan? timeout = null) => ExecuteAndWait<IInvokeHandlerContext>(
+            testAction,
+            m =>
+            {
+                if (m.MessageHandler.HandlerType != typeof(TSaga)) return false;
+                
+                if (m.Extensions.TryGet(out ActiveSagaInstance saga))
+                {
+                    return !saga.NotFound && saga.Instance.Completed;
+                }
+                return false;
+            }, timeout);
+        
         public static Task<ObservedMessageContexts> ExecuteAndWait(
             Func<Task> testAction,
             Func<IIncomingLogicalMessageContext, bool> incomingPredicate,
@@ -50,6 +66,8 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
             var incomingMessageContexts = new List<IIncomingLogicalMessageContext>();
             var outgoingMessageContexts = new List<IOutgoingLogicalMessageContext>();
+            var invokeHandlerContexts = new List<IInvokeHandlerContext>();
+            
             var obs = Observable.Empty<object>();
 
             using var allListenerSubscription = DiagnosticListener.AllListeners
@@ -83,6 +101,15 @@ namespace NServiceBus.Extensions.IntegrationTesting
                             }
 
                             break;
+                        case ActivityNames.InvokedHandler:
+                            var invokeHandlerObs = listener.Select(e => e.Value).Cast<IInvokeHandlerContext>();
+                            invokeHandlerObs.Subscribe(invokeHandlerContexts.Add);
+
+                            if (typeof(TMessageContext) == typeof(IInvokeHandlerContext))
+                            {
+                                obs = obs.Merge(invokeHandlerObs);
+                            }
+                            break;
                     }
                 });
 
@@ -99,7 +126,8 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
             return new ObservedMessageContexts(
                 incomingMessageContexts, 
-                outgoingMessageContexts);
+                outgoingMessageContexts,
+                invokeHandlerContexts);
         }
     }
 }

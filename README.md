@@ -86,6 +86,59 @@ In the above, the `FinalMessage` is the expected "final message" after sending t
 
 You can wait for specific messages to be sent or received, as well as supply a custom timeout (if startup takes a while).
 
+### Saga testing
+
+In the example above, it shows a way to interact with a given message that has been handled. 
+
+A more complex scenario could be is having an integration test for working with Saga's. 
+
+Before you start testing the saga don't forget to add the following line of code to your CreateHostBuilder.
+
+```csharp
+endpoint.UsePersistence<LearningPersistence>();
+```
+
+E.g: To complete the business process you need input from various systems. When all that input is captured and processed, the saga is complete and can be marked for completion.
+
+In this case it is not possible to act on a certain type of message. In that specific case you can use `ExecuteAndWaitForHandled`.
+
+```csharp
+[Fact]
+public async Task Will_wait_for_saga_to_be_completed()
+{
+    var firstMessage = new FirstMessage {Message = "Hello World"};
+
+    var session = _factory.Services.GetService<IMessageSession>();
+
+    var result = await ExecuteAndWaitForSagaCompletion<SagaExample>(() => session.SendLocal(firstMessage));
+
+    var saga = result.InvokedHandlers.Single(x =>
+        x.MessageHandler.HandlerType == typeof(SagaExample)).GetSagaInstance();
+    
+    Assert.NotNull(saga);
+    
+    Assert.Equal(firstMessage.Message, ((SagaData)saga.Instance.Entity).Message);
+}
+```
+
+The function `GetSagaInstance()` is the following extension method. It makes it possible to easily cast the `IInvokeHandlerContest` to an `ActiveSagaInstance`.
+
+```csharp
+public static class InvokeHandlerContextExtension
+{
+    public static ActiveSagaInstance GetSagaInstance(this IInvokeHandlerContext context)
+    {
+        return context.Extensions.TryGet(out ActiveSagaInstance saga) ? saga : null;
+    }
+}
+``` 
+
+The test example also demonstrates how you can validate the SagaData that has been set during the lifecycle of the saga.
+
+```csharp
+Assert.Equal(firstMessage.Message, ((SagaData)saga.Instance.Entity).Message);
+```
+
 ### Multiple endpoints
 
 If you have multiple endpoints to test in a single integration test, you can create a single fixture that includes a `WebApplicationFactory` for each endpoint:
