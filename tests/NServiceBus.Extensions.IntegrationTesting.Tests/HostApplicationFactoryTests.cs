@@ -33,7 +33,7 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
             var result = await ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage));
 
             result.IncomingMessageContexts.Count.ShouldBe(3);
-            result.OutgoingMessageContexts.Count.ShouldBe(4);
+            result.OutgoingMessageContexts.Count.ShouldBe(3);
 
             result.ReceivedMessages.ShouldNotBeEmpty();
 
@@ -57,7 +57,7 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
         [Fact]
         public async Task Will_wait_for_saga_to_be_completed()
         {
-            var firstMessage = new FirstMessage {Message = "Hello World"};
+            var firstMessage = new StartSagaMessage {Message = "Hello World"};
 
             var session = _factory.Services.GetService<IMessageSession>();
 
@@ -129,16 +129,21 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
                 Task.CompletedTask;
         }
 
+        public class StartSagaMessage : ICommand
+        {
+            public string Message { get; set; } 
+        }
+
         public class SagaExample : Saga<SagaData>,
-            IAmStartedByMessages<FirstMessage>
+            IAmStartedByMessages<StartSagaMessage>
         {
             protected override void ConfigureHowToFindSaga(SagaPropertyMapper<SagaData> mapper)
             {
                 //note that mapping on a string is the worst example ever
-                mapper.ConfigureMapping<FirstMessage>(m => m.Message).ToSaga(s => s.Message);
+                mapper.ConfigureMapping<StartSagaMessage>(m => m.Message).ToSaga(s => s.Message);
             }
 
-            public Task Handle(FirstMessage message, IMessageHandlerContext context)
+            public Task Handle(StartSagaMessage message, IMessageHandlerContext context)
             {
                 Data.Message = message.Message;
                 MarkAsComplete();
