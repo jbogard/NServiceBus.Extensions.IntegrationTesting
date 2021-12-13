@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reactive.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NServiceBus.Extensions.Diagnostics;
 using NServiceBus.Pipeline;
@@ -46,7 +47,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
             Func<Task> testAction,
             Func<IIncomingLogicalMessageContext, bool> incomingPredicate,
             TimeSpan? timeout = null) => 
-            ExecuteAndWait<IIncomingLogicalMessageContext>(testAction, incomingPredicate,  timeout);
+            ExecuteAndWait<IIncomingLogicalMessageContext>(testAction, incomingPredicate, timeout);
 
         public static Task<ObservedMessageContexts> ExecuteAndWait(
             Func<Task> testAction,
@@ -58,7 +59,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
             Func<Task> testAction,
             Func<TMessageContext, bool> predicate,
             TimeSpan? timeout = null)
-            where TMessageContext : IPipelineContext
+            where TMessageContext : class, IPipelineContext
         {
             timeout = Debugger.IsAttached
                 ? (TimeSpan?)null
@@ -67,10 +68,19 @@ namespace NServiceBus.Extensions.IntegrationTesting
             var incomingMessageContexts = new List<IIncomingLogicalMessageContext>();
             var outgoingMessageContexts = new List<IOutgoingLogicalMessageContext>();
             var invokeHandlerContexts = new List<IInvokeHandlerContext>();
-            
-            var obs = Observable.Empty<object>();
 
-            using var allListenerSubscription = DiagnosticListener.AllListeners
+            var messageReceivingTaskSource = new TaskCompletionSource<object>();
+            var cts = new CancellationTokenSource();
+            if (timeout != null)
+            {
+                cts.CancelAfter(timeout.Value);
+                cts.Token.Register(() =>
+                {
+                    messageReceivingTaskSource.SetException(new TimeoutException());
+                });
+            }
+
+            using var all = DiagnosticListener.AllListeners
                 .Subscribe(listener =>
                 {
                     switch (listener.Name)
@@ -80,12 +90,15 @@ namespace NServiceBus.Extensions.IntegrationTesting
                                 .Select(e => e.Value)
                                 .Cast<IIncomingLogicalMessageContext>();
 
-                            incomingObs.Subscribe(incomingMessageContexts.Add);
-
-                            if (typeof(TMessageContext) ==  typeof(IIncomingLogicalMessageContext))
+                            incomingObs.Subscribe(e =>
                             {
-                                obs = obs.Merge(incomingObs);
-                            }
+                                incomingMessageContexts.Add(e);
+
+                                if (e is TMessageContext ctx && predicate(ctx))
+                                {
+                                    messageReceivingTaskSource.SetResult(null);
+                                }
+                            });
 
                             break;
                         case ActivityNames.OutgoingLogicalMessage:
@@ -93,37 +106,38 @@ namespace NServiceBus.Extensions.IntegrationTesting
                                 .Select(e => e.Value)
                                 .Cast<IOutgoingLogicalMessageContext>();
 
-                            outgoingObs.Subscribe(outgoingMessageContexts.Add);
-
-                            if (typeof(TMessageContext) == typeof(IOutgoingLogicalMessageContext))
+                            outgoingObs.Subscribe((e) =>
                             {
-                                obs = obs.Merge(outgoingObs);
-                            }
+                                outgoingMessageContexts.Add(e);
+                                
+                                if (e is TMessageContext ctx && predicate(ctx))
+                                {
+                                    messageReceivingTaskSource.SetResult(null);
+                                }
+                            });
 
                             break;
                         case ActivityNames.InvokedHandler:
                             var invokeHandlerObs = listener.Select(e => e.Value).Cast<IInvokeHandlerContext>();
-                            invokeHandlerObs.Subscribe(invokeHandlerContexts.Add);
-
-                            if (typeof(TMessageContext) == typeof(IInvokeHandlerContext))
+                            invokeHandlerObs.Subscribe((e) =>
                             {
-                                obs = obs.Merge(invokeHandlerObs);
-                            }
+                                invokeHandlerContexts.Add(e);
+                                
+                                if (e is TMessageContext ctx && predicate(ctx))
+                                {
+                                    messageReceivingTaskSource.SetResult(null);
+                                }
+                            });
+                            
                             break;
                     }
                 });
-
-            var finalObs = obs.Cast<TMessageContext>().TakeUntil(predicate);
-            if (timeout != null)
-            {
-                finalObs = finalObs.Timeout(timeout.Value);
-            }
-
+            
             await testAction();
-
-            // Force the observable to complete
-            await finalObs;
-
+            
+            // Wait for either a timeout or a message
+            await messageReceivingTaskSource.Task;
+            
             return new ObservedMessageContexts(
                 incomingMessageContexts, 
                 outgoingMessageContexts,
