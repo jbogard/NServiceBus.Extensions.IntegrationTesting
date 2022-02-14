@@ -15,10 +15,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NServiceBus.Extensions.Diagnostics" Version="1.0.0" />
+    <PackageReference Include="NServiceBus.Extensions.Diagnostics" Version="2.0.0" />
     <PackageReference Include="System.Reactive.Core" Version="5.0.0" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <PackageReference Include="MinVer" Version="2.3.1" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    <PackageReference Include="MinVer" Version="2.5.0" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>
