@@ -16,7 +16,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
             Func<Task> testAction,
             TimeSpan? timeout = null) =>
             ExecuteAndWait<IIncomingLogicalMessageContext>(
-                testAction, 
+                testAction,
                 m => m.Message.MessageType == typeof(TMessageHandled),
                 timeout);
 
@@ -35,24 +35,24 @@ namespace NServiceBus.Extensions.IntegrationTesting
             m =>
             {
                 if (m.MessageHandler.HandlerType != typeof(TSaga)) return false;
-                
+
                 if (m.Extensions.TryGet(out ActiveSagaInstance saga))
                 {
                     return !saga.NotFound && saga.Instance.Completed;
                 }
                 return false;
             }, timeout);
-        
+
         public static Task<ObservedMessageContexts> ExecuteAndWait(
             Func<Task> testAction,
             Func<IIncomingLogicalMessageContext, bool> incomingPredicate,
-            TimeSpan? timeout = null) => 
+            TimeSpan? timeout = null) =>
             ExecuteAndWait<IIncomingLogicalMessageContext>(testAction, incomingPredicate, timeout);
 
         public static Task<ObservedMessageContexts> ExecuteAndWait(
             Func<Task> testAction,
             Func<IOutgoingLogicalMessageContext, bool> outgoingPredicate,
-            TimeSpan? timeout = null) => 
+            TimeSpan? timeout = null) =>
             ExecuteAndWait<IOutgoingLogicalMessageContext>(testAction, outgoingPredicate, timeout);
 
         private static async Task<ObservedMessageContexts> ExecuteAndWait<TMessageContext>(
@@ -70,15 +70,6 @@ namespace NServiceBus.Extensions.IntegrationTesting
             var invokeHandlerContexts = new List<IInvokeHandlerContext>();
 
             var messageReceivingTaskSource = new TaskCompletionSource<object>();
-            var cts = new CancellationTokenSource();
-            if (timeout != null)
-            {
-                cts.CancelAfter(timeout.Value);
-                cts.Token.Register(() =>
-                {
-                    messageReceivingTaskSource.SetException(new TimeoutException());
-                });
-            }
 
             using var all = DiagnosticListener.AllListeners
                 .Subscribe(listener =>
@@ -109,7 +100,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
                             outgoingObs.Subscribe((e) =>
                             {
                                 outgoingMessageContexts.Add(e);
-                                
+
                                 if (e is TMessageContext ctx && predicate(ctx))
                                 {
                                     messageReceivingTaskSource.SetResult(null);
@@ -122,24 +113,38 @@ namespace NServiceBus.Extensions.IntegrationTesting
                             invokeHandlerObs.Subscribe((e) =>
                             {
                                 invokeHandlerContexts.Add(e);
-                                
+
                                 if (e is TMessageContext ctx && predicate(ctx))
                                 {
                                     messageReceivingTaskSource.SetResult(null);
                                 }
                             });
-                            
+
                             break;
                     }
                 });
-            
+
             await testAction();
-            
+
+            if (timeout.HasValue)
+            {
+                var timeoutTask = Task.Delay(timeout.Value);
+                var finishedTask = await Task.WhenAny(messageReceivingTaskSource.Task, timeoutTask);
+                if (finishedTask == timeoutTask)
+                {
+                    throw new TimeoutException();
+                }
+            }
+            else
+            {
+                await messageReceivingTaskSource.Task;
+            }
+
             // Wait for either a timeout or a message
             await messageReceivingTaskSource.Task;
-            
+
             return new ObservedMessageContexts(
-                incomingMessageContexts, 
+                incomingMessageContexts,
                 outgoingMessageContexts,
                 invokeHandlerContexts);
         }
