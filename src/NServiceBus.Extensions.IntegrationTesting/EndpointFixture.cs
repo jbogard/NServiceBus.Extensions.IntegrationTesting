@@ -68,6 +68,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
             var incomingMessageContexts = new List<IIncomingLogicalMessageContext>();
             var outgoingMessageContexts = new List<IOutgoingLogicalMessageContext>();
             var invokeHandlerContexts = new List<IInvokeHandlerContext>();
+            var subscriptions = new List<IDisposable>();
 
             var messageReceivingTaskSource = new TaskCompletionSource<object>();
 
@@ -81,7 +82,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
                                 .Select(e => e.Value)
                                 .Cast<IIncomingLogicalMessageContext>();
 
-                            incomingObs.Subscribe(e =>
+                            subscriptions.Add(incomingObs.Subscribe(e =>
                             {
                                 incomingMessageContexts.Add(e);
 
@@ -89,7 +90,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
                                 {
                                     messageReceivingTaskSource.SetResult(null);
                                 }
-                            });
+                            }));
 
                             break;
                         case ActivityNames.OutgoingLogicalMessage:
@@ -97,7 +98,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
                                 .Select(e => e.Value)
                                 .Cast<IOutgoingLogicalMessageContext>();
 
-                            outgoingObs.Subscribe((e) =>
+                            subscriptions.Add(outgoingObs.Subscribe((e) =>
                             {
                                 outgoingMessageContexts.Add(e);
 
@@ -105,12 +106,12 @@ namespace NServiceBus.Extensions.IntegrationTesting
                                 {
                                     messageReceivingTaskSource.SetResult(null);
                                 }
-                            });
+                            }));
 
                             break;
                         case ActivityNames.InvokedHandler:
                             var invokeHandlerObs = listener.Select(e => e.Value).Cast<IInvokeHandlerContext>();
-                            invokeHandlerObs.Subscribe((e) =>
+                            subscriptions.Add(invokeHandlerObs.Subscribe((e) =>
                             {
                                 invokeHandlerContexts.Add(e);
 
@@ -118,7 +119,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
                                 {
                                     messageReceivingTaskSource.SetResult(null);
                                 }
-                            });
+                            }));
 
                             break;
                     }
@@ -142,6 +143,9 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
             // Wait for either a timeout or a message
             await messageReceivingTaskSource.Task;
+
+            // clean up all active subscriptions
+            subscriptions.ForEach(x => x.Dispose());
 
             return new ObservedMessageContexts(
                 incomingMessageContexts,
