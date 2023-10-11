@@ -35,7 +35,8 @@ namespace NServiceBus.Extensions.IntegrationTesting
             transportConfigurationAction?.Invoke(transport);
 
             endpoint.PurgeOnStartup(true);
-            endpoint.DisableFeature<Audit>();
+            endpoint.DisableFeature<Features.Audit>();
+            endpoint.EnableOpenTelemetry();
             endpoint
                 .Recoverability()
                 .Immediate(i => i.NumberOfRetries(0))
