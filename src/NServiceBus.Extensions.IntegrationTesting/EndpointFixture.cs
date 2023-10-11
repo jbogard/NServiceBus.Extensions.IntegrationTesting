@@ -101,7 +101,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
                         break;
                     case NsbActivityNames.InvokeHandlerActivityName:
-                        var handlerContext = activitySource.GetTagItem("testing.invoke.handler.context") as IInvokeHandlerContext;
+                        var handlerContext = activitySource.Parent.GetTagItem("testing.invoke.handler.context") as IInvokeHandlerContext;
                      
                         invokeHandlerContexts.Add(handlerContext);
 
