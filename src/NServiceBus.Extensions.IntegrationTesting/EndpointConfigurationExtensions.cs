@@ -37,6 +37,19 @@ namespace NServiceBus.Extensions.IntegrationTesting
             endpoint.PurgeOnStartup(true);
             endpoint.DisableFeature<Features.Audit>();
             endpoint.EnableOpenTelemetry();
+
+            endpoint.Pipeline.Register(
+                new AttachIncomingLogicalMessageContextToActivity(),
+                "Attach incoming logical message context as OpenTelemetry tags");
+
+            endpoint.Pipeline.Register(
+                new AttachOutgoingLogicalMessageContextToActivity(),
+                "Attach Outgoing Logical Message Context as OpenTelemetry tags");
+
+            endpoint.Pipeline.Register(
+                new AttachInvokeHandlerContextToActivity(),
+                "Attach invoke handler Context as OpenTelemetry tags");
+
             endpoint
                 .Recoverability()
                 .Immediate(i => i.NumberOfRetries(0))
