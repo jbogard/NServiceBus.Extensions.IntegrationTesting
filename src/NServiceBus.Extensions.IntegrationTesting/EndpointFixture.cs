@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NServiceBus.Extensions.Diagnostics;
 using NServiceBus.Pipeline;
 using NServiceBus.Sagas;
 
@@ -72,58 +71,55 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
             var messageReceivingTaskSource = new TaskCompletionSource<object>();
 
-            using var all = DiagnosticListener.AllListeners
-                .Subscribe(listener =>
+            // https://github.com/dotnet/runtime/blob/eccafbac942be9e3b06d48cff735fd6e50c3f25a/src/libraries/System.Diagnostics.DiagnosticSource/tests/ActivitySourceTests.cs#L134
+            using ActivityListener listener = new();
+            listener.ActivityStopped = (activitySource) =>
+            {
+                switch (activitySource.OperationName)
                 {
-                    switch (listener.Name)
-                    {
-                        case ActivityNames.IncomingLogicalMessage:
-                            var incomingObs = listener
-                                .Select(e => e.Value)
-                                .Cast<IIncomingLogicalMessageContext>();
+                    case NsbActivityNames.IncomingMessageActivityName:
+                        var context = activitySource.GetTagItem("testing.incoming.message.context") as IIncomingLogicalMessageContext;
+                        
+                        incomingMessageContexts.Add(context);
 
-                            subscriptions.Add(incomingObs.Subscribe(e =>
-                            {
-                                incomingMessageContexts.Add(e);
+                        if (context is TMessageContext ctx && predicate(ctx))
+                        {
+                            messageReceivingTaskSource.SetResult(null);
+                        }
 
-                                if (e is TMessageContext ctx && predicate(ctx))
-                                {
-                                    messageReceivingTaskSource.SetResult(null);
-                                }
-                            }));
+                        break;
+                    case NsbActivityNames.OutgoingMessageActivityName:
+                        var outgoingContext = activitySource.GetTagItem("testing.outgoing.message.context") as IOutgoingLogicalMessageContext;
 
-                            break;
-                        case ActivityNames.OutgoingLogicalMessage:
-                            var outgoingObs = listener
-                                .Select(e => e.Value)
-                                .Cast<IOutgoingLogicalMessageContext>();
+                        outgoingMessageContexts.Add(outgoingContext);
 
-                            subscriptions.Add(outgoingObs.Subscribe((e) =>
-                            {
-                                outgoingMessageContexts.Add(e);
+                        if (outgoingContext is TMessageContext ctx2 && predicate(ctx2))
+                        {
+                            messageReceivingTaskSource.SetResult(null);
+                        }
 
-                                if (e is TMessageContext ctx && predicate(ctx))
-                                {
-                                    messageReceivingTaskSource.SetResult(null);
-                                }
-                            }));
 
-                            break;
-                        case ActivityNames.InvokedHandler:
-                            var invokeHandlerObs = listener.Select(e => e.Value).Cast<IInvokeHandlerContext>();
-                            subscriptions.Add(invokeHandlerObs.Subscribe((e) =>
-                            {
-                                invokeHandlerContexts.Add(e);
+                        break;
+                    case NsbActivityNames.InvokeHandlerActivityName:
+                        var handlerContext = activitySource.Parent.GetTagItem("testing.invoke.handler.context") as IInvokeHandlerContext;
+                     
+                        invokeHandlerContexts.Add(handlerContext);
 
-                                if (e is TMessageContext ctx && predicate(ctx))
-                                {
-                                    messageReceivingTaskSource.SetResult(null);
-                                }
-                            }));
+                        if (handlerContext is TMessageContext ctx3 && predicate(ctx3))
+                        {
+                            messageReceivingTaskSource.SetResult(null);
+                        }
 
-                            break;
-                    }
-                });
+
+                        break;
+                }
+            };
+            listener.ShouldListenTo = _ => true;
+            listener.Sample = (ref ActivityCreationOptions<ActivityContext> activityOptions) => ActivitySamplingResult.AllData;
+
+            ActivitySource.AddActivityListener(listener);
+
+
 
             await testAction();
 
