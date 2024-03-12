@@ -89,6 +89,7 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
                         break;
                     case NsbActivityNames.OutgoingMessageActivityName:
+                    case NsbActivityNames.PublishMessageActivityName:
                         var outgoingContext = activitySource.GetTagItem("testing.outgoing.message.context") as IOutgoingLogicalMessageContext;
 
                         outgoingMessageContexts.Add(outgoingContext);
