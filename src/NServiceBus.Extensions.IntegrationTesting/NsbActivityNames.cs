@@ -4,7 +4,7 @@
     {
         public const string IncomingMessageActivityName = "NServiceBus.Diagnostics.ReceiveMessage";
 
-        public const string OutgoingMessageActivityName = "NServiceBus.Diagnostics.SendMessage";
+        public const string SendMessageActivityName = "NServiceBus.Diagnostics.SendMessage";
 
         public const string PublishMessageActivityName = "NServiceBus.Diagnostics.PublishMessage";
 
