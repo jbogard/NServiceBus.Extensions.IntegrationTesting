@@ -6,6 +6,8 @@
 
         public const string OutgoingMessageActivityName = "NServiceBus.Diagnostics.SendMessage";
 
+        public const string PublishMessageActivityName = "NServiceBus.Diagnostics.PublishMessage";
+
         public const string InvokeHandlerActivityName = "NServiceBus.Diagnostics.InvokeHandler";
     }
 }
