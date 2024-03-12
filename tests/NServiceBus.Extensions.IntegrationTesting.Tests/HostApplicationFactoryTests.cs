@@ -32,8 +32,8 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
 
             var result = await ExecuteAndWaitForHandled<FinalMessage>(() => session.SendLocal(firstMessage));
 
-            result.IncomingMessageContexts.Count.ShouldBe(3);
-            result.OutgoingMessageContexts.Count.ShouldBe(3);
+            result.IncomingMessageContexts.Count.ShouldBe(4);
+            result.OutgoingMessageContexts.Count.ShouldBe(4);
 
             result.ReceivedMessages.ShouldNotBeEmpty();
 
@@ -101,6 +101,11 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
             public string Message { get; set; }
         }
 
+        public class ThirdMessage : IEvent
+        {
+            public string Message { get; set; }
+        }
+
         public class FinalMessage : ICommand
         {
             public string Message { get; set; }
@@ -120,6 +125,12 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
         public class SecondHandler : IHandleMessages<SecondMessage>
         {
             public Task Handle(SecondMessage message, IMessageHandlerContext context) => 
+                context.Publish(new ThirdMessage {Message = message.Message});
+        }
+
+        public class ThirdHandler : IHandleMessages<ThirdMessage>
+        {
+            public Task Handle(ThirdMessage message, IMessageHandlerContext context) => 
                 context.SendLocal(new FinalMessage {Message = message.Message});
         }
 
