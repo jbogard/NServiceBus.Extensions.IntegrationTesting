@@ -26,11 +26,11 @@ $artifacts = ".\artifacts"
 
 if(Test-Path $artifacts) { Remove-Item $artifacts -Force -Recurse }
 
-exec { & dotnet clean -c Release }
+exec { & dotnet clean --configuration Release }
 
-exec { & dotnet build -c Release }
+exec { & dotnet build --configuration Release }
 
-exec { & dotnet test -c Release -r $artifacts --no-build -l trx --verbosity=normal }
+exec { & dotnet test --configuration Release --results-directory $artifacts --no-build --logger trx --verbosity=normal }
 
-exec { & dotnet pack .\src\NServiceBus.Extensions.IntegrationTesting\NServiceBus.Extensions.IntegrationTesting.csproj -c Release -o $artifacts --no-build }
+exec { & dotnet pack .\src\NServiceBus.Extensions.IntegrationTesting\NServiceBus.Extensions.IntegrationTesting.csproj --configuration Release --output $artifacts --no-build }
 

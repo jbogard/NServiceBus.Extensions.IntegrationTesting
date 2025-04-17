@@ -80,6 +80,7 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
                         var endpoint = new EndpointConfiguration("HostApplicationFactoryTests");
                         endpoint.ConfigureTestEndpoint();
                         endpoint.UsePersistence<LearningPersistence>();
+                        endpoint.UseSerialization<SystemJsonSerializer>();
                         return endpoint;
                     })
                     .ConfigureWebHostDefaults(b => b.Configure(app => {}));
