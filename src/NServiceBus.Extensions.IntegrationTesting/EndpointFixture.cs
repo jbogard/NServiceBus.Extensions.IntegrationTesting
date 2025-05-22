@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reactive.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using NServiceBus.Pipeline;
 using NServiceBus.Sagas;
