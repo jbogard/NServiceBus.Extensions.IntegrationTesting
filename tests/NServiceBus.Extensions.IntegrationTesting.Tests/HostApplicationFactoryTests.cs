@@ -152,7 +152,8 @@ namespace NServiceBus.Extensions.IntegrationTesting.Tests
             protected override void ConfigureHowToFindSaga(SagaPropertyMapper<SagaData> mapper)
             {
                 //note that mapping on a string is the worst example ever
-                mapper.ConfigureMapping<StartSagaMessage>(m => m.Message).ToSaga(s => s.Message);
+                mapper.MapSaga(saga => saga.Message)
+                    .ToMessage<StartSagaMessage>(m => m.Message);
             }
 
             public Task Handle(StartSagaMessage message, IMessageHandlerContext context)

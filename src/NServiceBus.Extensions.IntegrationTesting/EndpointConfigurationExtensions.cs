@@ -1,5 +1,4 @@
 ﻿using System;
-using NServiceBus.Features;
 
 namespace NServiceBus.Extensions.IntegrationTesting
 {
@@ -36,7 +35,6 @@ namespace NServiceBus.Extensions.IntegrationTesting
 
             endpoint.PurgeOnStartup(true);
             endpoint.DisableFeature<Features.Audit>();
-            endpoint.EnableOpenTelemetry();
 
             endpoint.Pipeline.Register(
                 new AttachIncomingLogicalMessageContextToActivity(),
